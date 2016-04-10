@@ -4,9 +4,18 @@
 #define COLUMNS 28
 #define PANELS 4
 
+#define PORT_TX 10
+#define PORT_RX 11
+SoftwareSerial panelPort(PORT_RX, PORT_TX);
+
 typedef struct _column { bool row[ROWS]; } _column;
 typedef struct _panel { _column column[COLUMNS]; } _panel;
 struct kiosk { _panel panel[PANELS]; } kiosk;
+
+#define PANEL_HEADER 0x80
+#define PANEL_WRITE_CMD 0x84
+#define PANEL_REFRESH_CMD 0x82
+#define PANEL_END 0x8F
 
 // Set a specified dot on a specified panel
 void setPanelDot(int panelIdx, int x, int y, bool dotOn) {
@@ -37,6 +46,38 @@ char** emitPanel(int panelIdx) {
     }
   }
   return panel;
+}
+
+void refreshPanels() {
+  String displayMessage = "";
+  displayMessage+=PANEL_HEADER;
+  displayMessage+=PANEL_REFRESH_CMD;
+  displayMessage+=PANEL_END;
+  writeToPanels(displayMessage);
+}
+
+void writeDisplayToPanels() {
+  for (int p=0; p<PANELS; p++) {
+    String displayMessage = "";
+    displayMessage+=PANEL_HEADER;
+    displayMessage+=PANEL_WRITE_CMD;
+    displayMessage+=byte(p);
+    for (int x=0; x<COLUMNS; x++) {
+      byte val = 0x00;
+      for (int y=0; y<ROWS; y++) {
+        if (getPanelDot(p, x, y)) {
+          val |= y;
+        }
+      }
+      displayMessage += val;
+    }
+    displayMessage+=PANEL_END;
+    writeToPanels(displayMessage);
+  }
+}
+
+void writeToPanels(String message) {
+  panelPort.print(message);    
 }
 
 // Set all dots on all panels
