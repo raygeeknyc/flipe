@@ -4,9 +4,15 @@
 #define COLUMNS 28
 #define PANELS 4
 
-#define PORT_TX 10
-#define PORT_RX 11
-SoftwareSerial panelPort(PORT_RX, PORT_TX);
+#define RS485_TX 2
+#define RS485_RX 3
+#define RS485_BAUD 9600
+SoftwareSerial panelPort(RS485_RX, RS485_TX);
+
+// Minimum time between display updates in MS
+#define REFRESH_FREQUENCY 500
+// Time after the last sensor update before we go to attract mode
+#define IDLE_TIMEOUT 3000
 
 typedef struct _column { bool row[ROWS]; } _column;
 typedef struct _panel { _column column[COLUMNS]; } _panel;
@@ -92,12 +98,24 @@ void setup() {
   setPanelDot(0, 2, 2, true);
   setPanel(1, true);
   setPanelDot(1, 2, 2, false);
+  panelPort.begin(RS485_BAUD);
   Serial.begin(9600);
   Serial.println("/setup");
-  dumpPanel(0);
-  dumpPanel(1);
+  dumpPanels();
 }
 
+/** Call this once the panels contents are set and you wish to display them
+ */
+void updateDisplay() {
+  writeDisplayToPanels();
+  refreshPanels();
+}
+
+void dumpPanels() {
+  for (int p=0; p<PANELS; p++) {
+    dumpPanel(p);
+  }
+}
 void dumpPanel(int panelIdx) {
   Serial.print("<");
   Serial.print(panelIdx);
@@ -114,5 +132,38 @@ void dumpPanel(int panelIdx) {
   Serial.println(">");
 }
 
+int getSensorValue() {
+  //TODO(raymond) get a sensor value here from USB and return the int
+  //return -1 if no value was read
+  return 10;
+}
+
+bool setPanelsFromSensor() {
+  int sensorReading = getSensorValue();
+  if (sensorReading < 0) {
+    return false;
+  }
+  //TODO(raymond) set the panels here
+  return true;
+}
+
+void setPanelIdlePattern() {
+  //TODO(raymond) Set some random pixels outside of the "e" to on, set the "e" off
+}
+
 void loop() {
+  unsigned long int nextRefreshAt, lastRefreshed, lastUpdated, idleAt;
+  bool updated = setPanelsFromSensor();
+  if (updated) {
+    lastUpdated = millis();
+    idleAt = lastUpdated + IDLE_TIMEOUT;
+  }
+  if (millis() > idleAt && idleAt > 0) {
+    setPanelIdlePattern();
+  }
+  if (millis() > nextRefreshAt && nextRefreshAt > 0) {
+    updateDisplay();
+    lastRefreshed = millis();
+    nextRefreshAt = lastRefreshed + REFRESH_FREQUENCY;    
+  }
 }
