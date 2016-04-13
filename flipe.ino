@@ -65,7 +65,8 @@ bool getDot(bool idle, int x, int y) {
 // Scale the sensor value to the row, flip the orientation as needed.
 // Return true if this row should be visible for the current sensorValue
 bool showRow(int row, int sensorValue) {
-  return (ROWS - row) <= (sensorValue * y_scaling_factor);
+  bool visible = (ROWS - row) <= int(sensorValue * y_scaling_factor);
+  return visible;
 }
 
 void setDisplay(bool idle, int sensorValue) {
@@ -80,7 +81,7 @@ void setDisplay(bool idle, int sensorValue) {
     for (int x = 0; x < PANEL_COLUMNS; x++) {
       byte val = 0x00;
       for (int y = 0; y < PANEL_ROWS; y++) {
-        if (showRow(y, sensorValue)) {
+        if (showRow(y+(p*PANEL_ROWS), sensorValue)) {
           if (getDot(idle, x, y+(p*PANEL_ROWS))) {
             val |= y;
           }
@@ -440,7 +441,7 @@ void _initLetterMap() {
 
 void setup() {
   _initLetterMap();
-  y_scaling_factor = ROWS / (SENSOR_MAX - SENSOR_MIN);
+  y_scaling_factor = (float)ROWS / (float)(SENSOR_MAX - SENSOR_MIN);
   panelPort.begin(RS485_BAUD);
   Serial.begin(9600);
   Serial.println("/setup");
