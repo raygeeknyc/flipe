@@ -22,25 +22,27 @@ float y_scaling_factor;
 #define RS485_BAUD 9600
 SoftwareSerial panelPort(RS485_RX, RS485_TX);
 
-// TODO(raymondb) reduce memory usage
+unsigned long int nextRefreshAt, lastRefreshedAt, lastUpdatedAt, idleAt;
+
 bool letterMap[COLUMNS][ROWS];
 
 // Minimum time between display updates in MS
-#define REFRESH_FREQUENCY 500
+#define REFRESH_FREQUENCY 250
 // Time after the last sensor update before we go to attract mode
 #define IDLE_TIMEOUT 3000
 
-#define PANEL_HEADER 0x80
-#define PANEL_WRITE_CMD 0x84
-#define PANEL_REFRESH_CMD 0x82
-#define PANEL_END 0x8F
+const byte PANEL_HEADER = 0x80u;
+const byte  PANEL_WRITE_CMD = 0x84u;
+const byte  PANEL_REFRESH_CMD = 0x82u;
+const byte  PANEL_END = 0x8Fu;
 
 void refreshDisplay() {
-  String displayMessage = "";
-  displayMessage += PANEL_HEADER;
-  displayMessage += PANEL_REFRESH_CMD;
-  displayMessage += PANEL_END;
-  writeToPanels(displayMessage);
+  byte displayMessage[3];
+  int messageIndex = 0;
+  displayMessage[messageIndex++] = PANEL_HEADER;
+  displayMessage[messageIndex++] = PANEL_REFRESH_CMD;
+  displayMessage[messageIndex++] =  PANEL_END;
+  writeToPanels(displayMessage, messageIndex);
 }
 
 byte panelAddress(int panelIdx) {
@@ -68,11 +70,13 @@ bool showRow(int row, int sensorValue) {
 
 void setDisplay(bool idle, int sensorValue) {
   // TODO(raymond) Maintain and plot an aged high watermark for the VU meter effect
+  byte displayMessage[31];
+  int messageIndex;
   for (int p = 0; p < PANELS; p++) {
-    String displayMessage = "";
-    displayMessage += PANEL_HEADER;
-    displayMessage += PANEL_WRITE_CMD;
-    displayMessage += panelAddress(p);
+    messageIndex = 0;
+    displayMessage[messageIndex++] = PANEL_HEADER;
+    displayMessage[messageIndex++] = PANEL_WRITE_CMD;
+    displayMessage[messageIndex++] = byte(panelAddress(p));
     for (int x = 0; x < PANEL_COLUMNS; x++) {
       byte val = 0x00;
       for (int y = 0; y < PANEL_ROWS; y++) {
@@ -82,18 +86,21 @@ void setDisplay(bool idle, int sensorValue) {
           }
         }
       }
-      displayMessage += val;
+      displayMessage[messageIndex++] = byte(val);
     }
-    displayMessage += PANEL_END;
-    writeToPanels(displayMessage);
+    displayMessage[messageIndex++] = PANEL_END;
+    writeToPanels(displayMessage, messageIndex);
   }
 }
 
-void writeToPanels(String message) {
-  #ifdef _DEBUG
-  Serial.println(message);
+void writeToPanels(byte message[], int messageLength) {
+  #ifdef _DEBUG  
+  for (int i=0; i<messageLength; i++) {
+    Serial.print(message[i]);
+  }
+ Serial.println();
   #else
-  panelPort.print(message);
+  panelPort.write(message, messageLength);
   #endif
 }
 
@@ -442,7 +449,12 @@ void setup() {
 int getSensorValue() {
   //TODO(raymond) get a sensor value here from USB and return the int
   //return -1 if no value was read
-  return random(0,2)<1?-1:random(0,100);
+  int val = random(0,2)<1?-1:random(0,100);
+  #ifdef _DEBUG
+  Serial.print(val);
+  Serial.println("-->");
+  #endif
+  return val;
 }
 
 bool setDisplayForSensor() {
@@ -459,18 +471,23 @@ void setDisplayForIdle() {
 }
 
 void loop() {
-  unsigned long int nextRefreshAt, lastRefreshed, lastUpdated, idleAt;
+  if (nextRefreshAt == 0) {
+    nextRefreshAt = millis();
+  }
   bool updated = setDisplayForSensor();
   if (updated) {
-    lastUpdated = millis();
-    idleAt = lastUpdated + IDLE_TIMEOUT;
+    lastUpdatedAt = millis();
+    idleAt = lastUpdatedAt + IDLE_TIMEOUT;
   }
   if (millis() > idleAt && idleAt > 0) {
     setDisplayForIdle();
   }
   if (millis() > nextRefreshAt && nextRefreshAt > 0) {
+    #ifdef _DEBUG
+    Serial.println(millis());
+    #endif
     refreshDisplay();
-    lastRefreshed = millis();
-    nextRefreshAt = lastRefreshed + REFRESH_FREQUENCY;
+    lastRefreshedAt = millis();
+    nextRefreshAt = lastRefreshedAt + REFRESH_FREQUENCY;
   }
 }
