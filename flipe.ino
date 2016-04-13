@@ -1,11 +1,17 @@
 #include <SoftwareSerial.h>
 
+#define _DEBUG
+
 #define PANEL_ROWS 7
 #define PANEL_COLUMNS 28
 #define PANELS 4
 
 const int ROWS = PANEL_ROWS * PANELS;
 const int COLUMNS = PANEL_COLUMNS;
+
+#define SENSOR_MIN 0
+#define SENSOR_MAX 99
+float y_scaling_factor;
 
 // between 0 and 99, the "percentage" of attract mode pixels to turn on
 #define ATTRACT_MODE_DENSITY 20
@@ -54,8 +60,14 @@ bool getDot(bool idle, int x, int y) {
   return letterPixel;
 }
 
+// Scale the sensor value to the row, flip the orientation as needed.
+// Return true if this row should be visible for the current sensorValue
+bool showRow(int row, int sensorValue) {
+  return (ROWS - row) <= (sensorValue * y_scaling_factor);
+}
+
 void setDisplay(bool idle, int sensorValue) {
-  // TODO(raymond) Use the sensorValue to scale the rows that are plotted and maintain an aged high watermark for the VU meter effect
+  // TODO(raymond) Maintain and plot an aged high watermark for the VU meter effect
   for (int p = 0; p < PANELS; p++) {
     String displayMessage = "";
     displayMessage += PANEL_HEADER;
@@ -64,8 +76,10 @@ void setDisplay(bool idle, int sensorValue) {
     for (int x = 0; x < PANEL_COLUMNS; x++) {
       byte val = 0x00;
       for (int y = 0; y < PANEL_ROWS; y++) {
-        if (getDot(idle, x, y)) {
-          val |= y;
+        if (showRow(y, sensorValue)) {
+          if (getDot(idle, x, y+(p*PANEL_ROWS))) {
+            val |= y;
+          }
         }
       }
       displayMessage += val;
@@ -76,7 +90,11 @@ void setDisplay(bool idle, int sensorValue) {
 }
 
 void writeToPanels(String message) {
+  #ifdef _DEBUG
+  Serial.println(message);
+  #else
   panelPort.print(message);
+  #endif
 }
 
 // Set the letter map
@@ -415,6 +433,7 @@ void _initLetterMap() {
 
 void setup() {
   _initLetterMap();
+  y_scaling_factor = ROWS / (SENSOR_MAX - SENSOR_MIN);
   panelPort.begin(RS485_BAUD);
   Serial.begin(9600);
   Serial.println("/setup");
@@ -423,7 +442,7 @@ void setup() {
 int getSensorValue() {
   //TODO(raymond) get a sensor value here from USB and return the int
   //return -1 if no value was read
-  return 10;
+  return random(0,2)<1?-1:random(0,100);
 }
 
 bool setDisplayForSensor() {
