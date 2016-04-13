@@ -54,7 +54,7 @@ bool getDot(bool idle, int x, int y) {
 
   if (idle) {
     if (letterPixel) {
-      letterPixel != letterPixel;
+      letterPixel = !letterPixel;
     } else {
       letterPixel = (random(0,100) < ATTRACT_MODE_DENSITY?true:false);
     }
@@ -452,8 +452,10 @@ int getSensorValue() {
   //return -1 if no value was read
   int val = random(0,2)<1?-1:random(0,100);
   #ifdef _DEBUG
-  Serial.print(val);
-  Serial.println("-->");
+  if (val >= 0) {
+    Serial.print(val);
+   Serial.println("-->");
+  }
   #endif
   return val;
 }
@@ -468,12 +470,13 @@ bool setDisplayForSensor() {
 }
 
 void setDisplayForIdle() {
-  setDisplay(true, 0);
+  setDisplay(true, 99);
 }
 
 void loop() {
   if (nextRefreshAt == 0) {
     nextRefreshAt = millis();
+    idleAt = millis() + IDLE_TIMEOUT;
   }
   bool updated = setDisplayForSensor();
   if (updated) {
@@ -481,10 +484,15 @@ void loop() {
     idleAt = lastUpdatedAt + IDLE_TIMEOUT;
   }
   if (millis() > idleAt && idleAt > 0) {
+    #ifdef _DEBUG
+    Serial.print ("idle:");
+    Serial.println(millis());
+    #endif
     setDisplayForIdle();
   }
   if (millis() > nextRefreshAt && nextRefreshAt > 0) {
     #ifdef _DEBUG
+    Serial.print ("refresh:");
     Serial.println(millis());
     #endif
     refreshDisplay();
