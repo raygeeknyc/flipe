@@ -42,7 +42,7 @@ void refreshDisplay() {
   displayMessage[messageIndex++] = PANEL_HEADER;
   displayMessage[messageIndex++] = PANEL_REFRESH_CMD;
   displayMessage[messageIndex++] =  PANEL_END;
-  writeToPanels(displayMessage, messageIndex);
+  writeToPanel(displayMessage, messageIndex);
 }
 
 byte panelAddress(int panelIdx) {
@@ -90,20 +90,32 @@ void setDisplay(bool idle, int sensorValue) {
       displayMessage[messageIndex++] = byte(val);
     }
     displayMessage[messageIndex++] = PANEL_END;
-    writeToPanels(displayMessage, messageIndex);
+    writeToPanel(displayMessage, messageIndex);
   }
 }
 
-void writeToPanels(byte message[], int messageLength) {
+void writeToPanel(byte message[], int messageLength) {
   #ifdef _DEBUG
-  for (int i=0; i<messageLength; i++) {
-    if (message[i] < 0x10) {
-      Serial.print("0");
-    }
-    Serial.print(message[i],HEX);
+  Serial.print("message:");
+  Serial.println(messageLength);
+  int msgPos;
+  for (msgPos=0; msgPos < sizeof(PANEL_END)+sizeof(PANEL_WRITE_CMD)+sizeof(byte);msgPos++) {
+    Serial.print(message[msgPos], HEX);
   }
   Serial.println();
-  #else
+  int msgBodyStart = msgPos;
+  for (int i=0;i<PANEL_ROWS;i++) {
+    Serial.print('\t');
+    msgPos = msgBodyStart;
+    for (;msgPos<messageLength-sizeof(PANEL_END); msgPos++) {
+      Serial.print(((message[msgPos] >> i) & 1)?"O":" ");
+    }
+    Serial.println();
+  }
+  for (;msgPos<messageLength; msgPos++) {
+    Serial.print(message[msgPos],HEX);
+  }
+ #else
   panelPort.write(message, messageLength);
   #endif
 }
