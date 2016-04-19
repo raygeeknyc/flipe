@@ -27,14 +27,19 @@ unsigned long int nextRefreshAt, lastRefreshedAt, lastUpdatedAt, idleAt;
 bool letterMap[COLUMNS][ROWS];
 
 // Minimum time between display updates in MS
-#define REFRESH_FREQUENCY 250
+#define REFRESH_FREQUENCY_MS 250
 // Time after the last sensor update before we go to attract mode
-#define IDLE_TIMEOUT 3000
+#define IDLE_TIMEOUT_MS 3000
 
 const byte PANEL_HEADER = 0x80u;
 const byte  PANEL_WRITE_CMD = 0x84u;
 const byte  PANEL_REFRESH_CMD = 0x82u;
 const byte  PANEL_END = 0x8Fu;
+
+// Track the high watermark for sensor values and expire them after a period of time
+int sensorHighWatermark;
+unsigned long int highWaterMarkAt;
+#define SENSOR_HIGHWATERMARK_TIMEOUT_MS 1500
 
 void refreshDisplay() {
   byte displayMessage[3];
@@ -494,6 +499,10 @@ int getSensorValue() {
    Serial.println("-->");
   }
   #endif
+  if (val >= sensorHighWatermark) {
+    sensorHighWatermark = val;
+    highWaterMarkAt = millis();
+  }
   return val;
 }
 
@@ -513,12 +522,12 @@ void setDisplayForIdle() {
 void loop() {
   if (nextRefreshAt == 0) {
     nextRefreshAt = millis();
-    idleAt = millis() + IDLE_TIMEOUT;
+    idleAt = millis() + IDLE_TIMEOUT_MS;
   }
   bool updated = setDisplayForSensor();
   if (updated) {
     lastUpdatedAt = millis();
-    idleAt = lastUpdatedAt + IDLE_TIMEOUT;
+    idleAt = lastUpdatedAt + IDLE_TIMEOUT_MS;
   }
   if (millis() > idleAt && idleAt > 0) {
     #ifdef _DEBUG
@@ -534,6 +543,6 @@ void loop() {
     #endif
     refreshDisplay();
     lastRefreshedAt = millis();
-    nextRefreshAt = lastRefreshedAt + REFRESH_FREQUENCY;
+    nextRefreshAt = lastRefreshedAt + REFRESH_FREQUENCY_MS;
   }
 }
