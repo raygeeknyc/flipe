@@ -66,15 +66,18 @@ bool getDot(bool idle, int x, int y) {
   return letterPixel;
 }
 
+int rowForSensorValue(int sensorValue) {
+  return (sensorValue==0)?0:int(sensorValue * y_scaling_factor + 1);
+}
+
 // Scale the sensor value to the row, flip the orientation as needed.
 // Return true if this row should be visible for the current sensorValue
 bool showRow(int row, int sensorValue) {
-  bool visible = (ROWS - row) <= int(sensorValue * y_scaling_factor + 1);
+  bool visible = (ROWS - row) <= rowForSensorValue(sensorValue);
   return visible;
 }
 
 void setDisplay(bool idle, int sensorValue) {
-  // TODO(raymond) Maintain and plot an aged high watermark for the VU meter effect
   byte displayMessage[31];
   int messageIndex;
 
@@ -86,8 +89,9 @@ void setDisplay(bool idle, int sensorValue) {
     for (int x = 0; x < PANEL_COLUMNS; x++) {
       byte val = 0x00;
       for (int y = 0; y < PANEL_ROWS; y++) {
-        if (showRow(y+(p*PANEL_ROWS), sensorValue)) {
-          if (getDot(idle, x, y+(p*PANEL_ROWS))) {
+        int displayRow = y+(p*PANEL_ROWS);
+        if (showRow(displayRow, sensorValue)) { // || showRow(displayRow, currentHighWatermark())) {
+          if (getDot(idle, x, displayRow)) {
             val = val | (1 << (y+1) - 1);
           }
         }
@@ -494,7 +498,7 @@ int getSensorValue() {
   int val = random(0,2)<1?-1:random(0,100);
   #ifdef _DEBUG
   if (val >= 0) {
-    val = 99;
+    //val = 99;  // Force full rendering
     Serial.print(val);
    Serial.println("-->");
   }
@@ -504,6 +508,16 @@ int getSensorValue() {
     highWaterMarkAt = millis();
   }
   return val;
+}
+
+// Return the high watermark or 0 if none
+// This may be the same as the current sensor value which is OK for our usage
+int currentHighWatermark() {
+  if ((highWaterMarkAt > 0) && (millis() <= highWaterMarkAt+SENSOR_HIGHWATERMARK_TIMEOUT_MS)) {
+    return 0;
+  } else {
+    return sensorHighWatermark;
+  }
 }
 
 bool setDisplayForSensor() {
