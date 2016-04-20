@@ -90,7 +90,18 @@ void setDisplay(bool idle, int sensorValue) {
       byte val = 0x00;
       for (int y = 0; y < PANEL_ROWS; y++) {
         int displayRow = y+(p*PANEL_ROWS);
-        if (showRow(displayRow, sensorValue)) { // || showRow(displayRow, currentHighWatermark())) {
+      /*  
+        Serial.print("currentHWM: ");
+        Serial.print(currentHighWatermark());
+        Serial.print("HWMrow: ");
+        Serial.print(rowForSensorValue(currentHighWatermark()));
+        Serial.print("Display row: ");
+        Serial.println(displayRow);
+      */
+        if (showRow(displayRow, sensorValue) || (currentHighWatermark() > 0 && rowForSensorValue(currentHighWatermark()) == displayRow)) {
+          if (idle) {
+            Serial.println("IDLE*****************");
+          }
           if (getDot(idle, x, displayRow)) {
             val = val | (1 << (y+1) - 1);
           }
