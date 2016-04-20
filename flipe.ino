@@ -29,7 +29,7 @@ bool letterMap[COLUMNS][ROWS];
 // Minimum time between display updates in MS
 #define REFRESH_FREQUENCY_MS 250
 // Time after the last sensor update before we go to attract mode
-#define IDLE_TIMEOUT_MS 3000
+#define IDLE_TIMEOUT_MS 9000
 
 const byte PANEL_HEADER = 0x80u;
 const byte  PANEL_WRITE_CMD = 0x84u;
@@ -39,7 +39,7 @@ const byte  PANEL_END = 0x8Fu;
 // Track the high watermark for sensor values and expire them after a period of time
 int sensorHighWatermark;
 unsigned long int highWaterMarkAt;
-#define SENSOR_HIGHWATERMARK_TIMEOUT_MS 1500
+#define SENSOR_HIGHWATERMARK_TIMEOUT_MS 5000
 
 void refreshDisplay() {
   byte displayMessage[3];
