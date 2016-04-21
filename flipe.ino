@@ -98,8 +98,9 @@ void setDisplay(bool idle, int sensorValue) {
         Serial.print("Display row: ");
         Serial.println(displayRow);
       */
-        if (showRow(displayRow, sensorValue) || (currentHighWatermark() > 0 && rowForSensorValue(currentHighWatermark()) == displayRow)) {
-          if (idle) {
+        int currentHWM = currentHighWatermark();
+        if (showRow(displayRow, sensorValue) || (currentHWM > 0 && ((ROWS - rowForSensorValue(currentHWM)) == rowForSensorValue(displayRow)))) {
+           if (idle) {
             Serial.println("IDLE*****************");
           }
           if (getDot(idle, x, displayRow)) {
@@ -510,8 +511,8 @@ int getSensorValue() {
   #ifdef _DEBUG
   if (val >= 0) {
     //val = 99;  // Force full rendering
-    Serial.print(val);
-   Serial.println("-->");
+    Serial.print("Sensor: ");
+    Serial.println(val);
   }
   #endif
   if (val >= sensorHighWatermark) {
@@ -521,14 +522,13 @@ int getSensorValue() {
   return val;
 }
 
-// Return the high watermark or 0 if none
+// Return the high watermark, reset it if it has expired
 // This may be the same as the current sensor value which is OK for our usage
 int currentHighWatermark() {
-  if ((highWaterMarkAt > 0) && (millis() <= highWaterMarkAt+SENSOR_HIGHWATERMARK_TIMEOUT_MS)) {
-    return 0;
-  } else {
-    return sensorHighWatermark;
+  if ((highWaterMarkAt > 0) && (millis() > highWaterMarkAt+SENSOR_HIGHWATERMARK_TIMEOUT_MS)) {
+      sensorHighWatermark = 0;
   }
+  return sensorHighWatermark;
 }
 
 bool setDisplayForSensor() {
