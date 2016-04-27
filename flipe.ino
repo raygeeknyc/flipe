@@ -1,6 +1,6 @@
 #include <SoftwareSerial.h>
 
-#define _DEBUG
+#define _NODEBUG
 
 #define PANEL_ROWS 7
 #define PANEL_COLUMNS 28
@@ -14,7 +14,7 @@ const int COLUMNS = PANEL_COLUMNS;
 float y_scaling_factor;
 
 // between 0 and 99, the "percentage" of attract mode pixels to turn on
-#define ATTRACT_MODE_DENSITY 40
+#define ATTRACT_MODE_DENSITY 100
 
 // The pins and BAUD rate to use for the RS485 port
 #define RS485_TX 3
@@ -55,10 +55,11 @@ byte panelAddress(int panelIdx) {
 }
 
 bool getDot(bool idle, int x, int y) {
+  if (idle) { Serial.print("IDLE"); delay(10000); }
   bool letterPixel = letterMap[x][y];
   if (idle) {
     if (letterPixel) {
-      letterPixel = !letterPixel;
+      letterPixel = false;
     } else {
       letterPixel = (random(0,100) < ATTRACT_MODE_DENSITY?true:false);
     }
@@ -77,7 +78,7 @@ bool showRow(int row, int sensorValue) {
   return visible;
 }
 
-void setDisplay(bool idle, int sensorValue) {
+void setDisplay(bool isIdle, int sensorValue) {
   byte displayMessage[31];
   int messageIndex;
 
@@ -101,11 +102,11 @@ void setDisplay(bool idle, int sensorValue) {
         int currentHWM = currentHighWatermark();
         if (showRow(displayRow, sensorValue) || (currentHWM > 0 && ((ROWS - rowForSensorValue(currentHWM)) == rowForSensorValue(displayRow)))) {
           #ifdef _DEBUG
-           if (idle) {
+           if (isIdle) {
             Serial.println("IDLE*****************");
           }
           #endif
-          if (getDot(idle, x, displayRow)) {
+          if (getDot(isIdle, x, displayRow)) {
             val = val | (1 << (y+1) - 1);
           }
         }
@@ -118,7 +119,7 @@ void setDisplay(bool idle, int sensorValue) {
 }
 
 void writeToPanel(byte message[], int messageLength) {
-  #ifdef _DEBUG
+  //#ifdef _DEBUG
   Serial.print("message:");
   Serial.println(messageLength);
   int msgPos;
@@ -139,9 +140,9 @@ void writeToPanel(byte message[], int messageLength) {
     Serial.print(message[msgPos],HEX);
   }
   Serial.println();
-  #else
+  //#else
   panelPort.write(message, messageLength);
-  #endif
+ // #endif
 }
 
 // Set the letter map to one value
@@ -504,15 +505,16 @@ void setup() {
   panelPort.begin(RS485_BAUD);
   Serial.begin(9600);
   setLetterMap(true);
+  randomSeed(millis());
 }
 
 int getSensorValue() {
   //TODO(raymond) get a sensor value here from USB and return the int
   //return -1 if no value was read
-  int val = random(0,2)<1?-1:random(0,100);
+  int val = random(0,10)<1?-1:random(0,100);  // test 1 time out of 10, return no sensor value
   #ifdef _DEBUG
   if (val >= 0) {
-    //val = 99;  // Force full rendering
+    //val = SENSOR_MAX;  // Force full rendering
     Serial.print("Sensor: ");
     Serial.println(val);
   }
@@ -543,7 +545,7 @@ bool setDisplayForSensor() {
 }
 
 void setDisplayForIdle() {
-  setDisplay(true, 99);
+  setDisplay(true, SENSOR_MAX);
 }
 
 void loop() {
@@ -551,8 +553,8 @@ void loop() {
     nextRefreshAt = millis();
     idleAt = millis() + IDLE_TIMEOUT_MS;
   }
-  bool updated = setDisplayForSensor();
-  if (updated) {
+  bool sensorWasRead = setDisplayForSensor();
+  if (sensorWasRead) {
     lastUpdatedAt = millis();
     idleAt = lastUpdatedAt + IDLE_TIMEOUT_MS;
   }
