@@ -1,20 +1,22 @@
 #include <SoftwareSerial.h>
 
-#define _NODEBUG
+#define _DEBUG
 
 #define PANEL_ROWS 7
 #define PANEL_COLUMNS 28
 #define PANELS 4
 
 const int ROWS = PANEL_ROWS * PANELS;
-const int COLUMNS = PANEL_COLUMNS;
+const int COLUMNS = PANEL_COLUMNS;]
+// This is the first row that has any pixels set, needed to scale 99 to the top row, not above it
+#define BASE_ROW 3
 
 #define SENSOR_MIN 0
 #define SENSOR_MAX 99
 float y_scaling_factor;
 
 // between 0 and 99, the "percentage" of attract mode pixels to turn on
-#define ATTRACT_MODE_DENSITY 100
+#define ATTRACT_MODE_DENSITY 40
 
 // The pins and BAUD rate to use for the RS485 port
 #define RS485_TX 3
@@ -78,6 +80,8 @@ bool showRow(const int row, const int sensorValue) {
   return visible;
 }
 
+// Put the current message set for setting all panels' dots into displayMessage
+// and call writeToPanel to output the message set
 void setDisplay(const bool isIdle, const int sensorValue) {
   byte displayMessage[MESSAGE_MAX_SIZE];
   int messageIndex;
@@ -87,17 +91,14 @@ void setDisplay(const bool isIdle, const int sensorValue) {
     displayMessage[messageIndex++] = PANEL_HEADER;
     displayMessage[messageIndex++] = PANEL_WRITE_CMD;
     displayMessage[messageIndex++] = panelAddress(p);
+    int currentHWM = currentHighWatermark();
+    int hwmRow = rowForSensorValue(currentHWM);
     for (int x = 0; x < PANEL_COLUMNS; x++) {
       byte val = 0x00;
       for (int y = 0; y < PANEL_ROWS; y++) {
         int displayRow = y+(p*PANEL_ROWS);
-        int currentHWM = currentHighWatermark();
-        if (showRow(displayRow, sensorValue) || (currentHWM > 0 && (rowForSensorValue(currentHWM) == rowForSensorValue(displayRow)))) {
-          #ifdef _DEBUG
-           if (isIdle) {
-            Serial.println("IDLE*****************");
-          }
-          #endif
+        // idle == attract mode ignores the sensor and high watermark values
+        if (isIdle || showRow(displayRow, sensorValue) || (currentHWM > 0 && (displayRow == hwmRow))) {
           if (getDot(isIdle, x, displayRow)) {
             val = val | (1 << (y+1) - 1);
           }
@@ -111,7 +112,7 @@ void setDisplay(const bool isIdle, const int sensorValue) {
 }
 
 void writeToPanel(byte message[], const int messageLength) {
-  //#ifdef _DEBUG
+  #ifdef _DEBUG
   Serial.print("message:");
   Serial.println(messageLength);
   int msgPos;
@@ -132,9 +133,9 @@ void writeToPanel(byte message[], const int messageLength) {
     Serial.print(message[msgPos],HEX);
   }
   Serial.println();
-  //#else
+  #else
   panelPort.write(message, messageLength);
- // #endif
+  #endif
 }
 
 // Set the letter map to one value
@@ -493,7 +494,7 @@ void setLetterMap(const bool pixelVal) {
 }
 
 void setup() {
-  y_scaling_factor = (float)ROWS / (float)(SENSOR_MAX - SENSOR_MIN);
+  y_scaling_factor = (float)(ROWS-BASE_ROW) / (float)(SENSOR_MAX - SENSOR_MIN);
   panelPort.begin(RS485_BAUD);
   Serial.begin(9600);
   setLetterMap(true);
@@ -507,8 +508,10 @@ int getSensorValue() {
   #ifdef _DEBUG
   if (val >= 0) {
     //val = SENSOR_MAX;  // Force full rendering
+    #ifdef _DEBUG
     Serial.print("Sensor: ");
     Serial.println(val);
+    #endif
   }
   #endif
   if (val >= sensorHighWatermark) {
