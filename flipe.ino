@@ -35,6 +35,7 @@ const byte PANEL_HEADER = 0x80u;
 const byte  PANEL_WRITE_CMD = 0x84u;
 const byte  PANEL_REFRESH_CMD = 0x82u;
 const byte  PANEL_END = 0x8Fu;
+const int MESSAGE_MAX_SIZE = 4+(PANEL_COLUMNS);
 
 // Track the high watermark for sensor values and expire them after a period of time
 int sensorHighWatermark;
@@ -50,14 +51,13 @@ void refreshDisplay() {
   writeToPanel(displayMessage, messageIndex);
 }
 
-byte panelAddress(int panelIdx) {
+byte panelAddress(const int panelIdx) {
   return byte(panelIdx);
 }
 
-bool getDot(bool idle, int x, int y) {
-  if (idle) { Serial.print("IDLE"); delay(10000); }
+bool getDot(const bool idle, const int x, const int y) {
   bool letterPixel = letterMap[x][y];
-  if (idle) {
+  if (idle == true) {
     if (letterPixel) {
       letterPixel = false;
     } else {
@@ -67,40 +67,32 @@ bool getDot(bool idle, int x, int y) {
   return letterPixel;
 }
 
-int rowForSensorValue(int sensorValue) {
-  return (sensorValue==0)?0:int(sensorValue * y_scaling_factor + 1);
+int rowForSensorValue(const int sensorValue) {
+  return ROWS - ((sensorValue==0)?0:int(sensorValue * y_scaling_factor + 1));
 }
 
 // Scale the sensor value to the row, flip the orientation as needed.
 // Return true if this row should be visible for the current sensorValue
-bool showRow(int row, int sensorValue) {
-  bool visible = (ROWS - row) <= rowForSensorValue(sensorValue);
+bool showRow(const int row, const int sensorValue) {
+  bool visible = (row >= rowForSensorValue(sensorValue));
   return visible;
 }
 
-void setDisplay(bool isIdle, int sensorValue) {
-  byte displayMessage[31];
+void setDisplay(const bool isIdle, const int sensorValue) {
+  byte displayMessage[MESSAGE_MAX_SIZE];
   int messageIndex;
 
   for (int p = 0; p < PANELS; p++) {
     messageIndex = 0;
     displayMessage[messageIndex++] = PANEL_HEADER;
     displayMessage[messageIndex++] = PANEL_WRITE_CMD;
-    displayMessage[messageIndex++] = byte(panelAddress(p));
+    displayMessage[messageIndex++] = panelAddress(p);
     for (int x = 0; x < PANEL_COLUMNS; x++) {
       byte val = 0x00;
       for (int y = 0; y < PANEL_ROWS; y++) {
         int displayRow = y+(p*PANEL_ROWS);
-      /*  
-        Serial.print("currentHWM: ");
-        Serial.print(currentHighWatermark());
-        Serial.print("HWMrow: ");
-        Serial.print(rowForSensorValue(currentHighWatermark()));
-        Serial.print("Display row: ");
-        Serial.println(displayRow);
-      */
         int currentHWM = currentHighWatermark();
-        if (showRow(displayRow, sensorValue) || (currentHWM > 0 && ((ROWS - rowForSensorValue(currentHWM)) == rowForSensorValue(displayRow)))) {
+        if (showRow(displayRow, sensorValue) || (currentHWM > 0 && (rowForSensorValue(currentHWM) == rowForSensorValue(displayRow)))) {
           #ifdef _DEBUG
            if (isIdle) {
             Serial.println("IDLE*****************");
@@ -118,7 +110,7 @@ void setDisplay(bool isIdle, int sensorValue) {
   }
 }
 
-void writeToPanel(byte message[], int messageLength) {
+void writeToPanel(byte message[], const int messageLength) {
   //#ifdef _DEBUG
   Serial.print("message:");
   Serial.println(messageLength);
@@ -146,7 +138,7 @@ void writeToPanel(byte message[], int messageLength) {
 }
 
 // Set the letter map to one value
-void _initLetterMap(bool val) {
+void _initLetterMap(const bool val) {
   // Set all dots off
   for (int x = 0; x < COLUMNS; x++) {
     for (int y = 0; y < ROWS; y++) {
@@ -156,7 +148,7 @@ void _initLetterMap(bool val) {
 }
 
 // Set the letter map's individual pixels
-void _setLetterMap(bool pixelVal) {
+void _setLetterMap(const bool pixelVal) {
   _initLetterMap(false);
   // Set the dots of an 'e' on
   letterMap[0][0] = pixelVal;
@@ -172,7 +164,7 @@ void _setLetterMap(bool pixelVal) {
 }
 
 // Set the letter map
-void setLetterMap(bool pixelVal) {
+void setLetterMap(const bool pixelVal) {
   _initLetterMap(false);
   // Set the dots of an 'e' on
   letterMap[3][11] = pixelVal;
