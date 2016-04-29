@@ -2,21 +2,24 @@
 
 #define _DEBUG
 
+// This is our physical panel configuration
 #define PANEL_ROWS 7
 #define PANEL_COLUMNS 28
 #define PANELS 4
 
 const int ROWS = PANEL_ROWS * PANELS;
 const int COLUMNS = PANEL_COLUMNS;
-// This is the first row that has any pixels set, needed to scale 99 to the top row, not above it
-#define BASE_ROW 3
 
+// These define the range of expected sensor values
 #define SENSOR_MIN 0
 #define SENSOR_MAX 99
 float y_scaling_factor;
 
 // between 0 and 99, the "percentage" of attract mode pixels to turn on
 #define ATTRACT_MODE_DENSITY 40
+
+// This is the first row that has any pixels set in letterMap, needed to scale SENSOR_MAX to the top row, not above it
+#define BASE_ROW 3
 
 // The pins and BAUD rate to use for the RS485 port
 #define RS485_TX 3
@@ -28,13 +31,14 @@ unsigned long int nextRefreshAt, lastRefreshedAt, lastUpdatedAt, idleAt;
 
 bool letterMap[COLUMNS][ROWS];
 
-// The maximum number of refreshes per second
+// The maximum number of refreshes per second - be careful, the panels can only handle so many refreshes in so much time
 #define TARGET_REFRESH_HZ 4
 const int REFRESH_FREQUENCY_MS = (1/ TARGET_REFRESH_HZ)*1000;
 
-// Time after the last sensor update before we go to attract mode
+// Elapsed time after the last sensor update before we go to attract mode
 #define IDLE_TIMEOUT_MS 9000
 
+// Details of the flipdots panel protocol
 const byte PANEL_HEADER = 0x80u;
 const byte  PANEL_WRITE_CMD = 0x84u;
 const byte  PANEL_REFRESH_CMD = 0x82u;
@@ -140,7 +144,7 @@ void writeToPanel(byte message[], const int messageLength) {
   #endif
 }
 
-// Set the letter map to one value
+// Set each pixel of the letter map to one value
 void _initLetterMap(const bool val) {
   // Set all dots off
   for (int x = 0; x < COLUMNS; x++) {
@@ -148,22 +152,6 @@ void _initLetterMap(const bool val) {
       letterMap[x][y] = val;
     }
   }
-}
-
-// Set the letter map's individual pixels
-void _setLetterMap(const bool pixelVal) {
-  _initLetterMap(false);
-  // Set the dots of an 'e' on
-  letterMap[0][0] = pixelVal;
-  letterMap[1][1] = pixelVal;
-  letterMap[2][2] = pixelVal;
-  letterMap[3][3] = pixelVal;
-  letterMap[4][4] = pixelVal;
-  letterMap[5][5] = pixelVal;
-  letterMap[6][6] = pixelVal;
-  letterMap[7][7] = pixelVal;
-  letterMap[8][8] = pixelVal;
-  letterMap[9][9] = pixelVal;
 }
 
 // Set the letter map
