@@ -7,7 +7,7 @@
 #define PANELS 4
 
 const int ROWS = PANEL_ROWS * PANELS;
-const int COLUMNS = PANEL_COLUMNS;]
+const int COLUMNS = PANEL_COLUMNS;
 // This is the first row that has any pixels set, needed to scale 99 to the top row, not above it
 #define BASE_ROW 3
 
@@ -28,8 +28,10 @@ unsigned long int nextRefreshAt, lastRefreshedAt, lastUpdatedAt, idleAt;
 
 bool letterMap[COLUMNS][ROWS];
 
-// Minimum time between display updates in MS
-#define REFRESH_FREQUENCY_MS 250
+// The maximum number of refreshes per second
+#define TARGET_REFRESH_HZ 4
+const int REFRESH_FREQUENCY_MS = (1/ TARGET_REFRESH_HZ)*1000;
+
 // Time after the last sensor update before we go to attract mode
 #define IDLE_TIMEOUT_MS 9000
 
@@ -504,7 +506,22 @@ void setup() {
 int getSensorValue() {
   //TODO(raymond) get a sensor value here from USB and return the int
   //return -1 if no value was read
-  int val = random(0,10)<1?-1:random(0,100);  // test 1 time out of 10, return no sensor value
+  int serialCount = 0;
+  String sensorString = "";
+  while (Serial.available() > 0) {
+    int inChar = Serial.read();
+    if (isDigit(inChar)) {
+      sensorString += (char)inChar;
+    }
+    if (inChar == '\n' || inChar == '\0') {
+      break;
+    }
+  }
+  int val = -1;
+  if (sensorString > "") {
+    val = sensorString.toInt();
+  }
+  //  int val = random(0,10)<1?-1:random(0,100);  // test 1 time out of 10, return no sensor value
   #ifdef _DEBUG
   if (val >= 0) {
     //val = SENSOR_MAX;  // Force full rendering
@@ -553,7 +570,7 @@ void loop() {
     lastUpdatedAt = millis();
     idleAt = lastUpdatedAt + IDLE_TIMEOUT_MS;
   }
-  if (millis() > idleAt && idleAt > 0) {
+  if (idleAt > 0 && millis() > idleAt) {
     #ifdef _DEBUG
     Serial.print ("idle:");
     Serial.println(millis());
