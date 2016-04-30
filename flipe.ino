@@ -7,7 +7,13 @@
 #define PANEL_COLUMNS 28
 #define PANELS 4
 
+// This is the first and last rows that have any pixels set in letterMap, needed to scale SENSOR_MAX to the top row, not above it
+// and SENSOR_MIN to the bottom row not below it
+#define BASE_ROW 3
+#define LAST_ROW 24
+
 const int ROWS = PANEL_ROWS * PANELS;
+const int LETTER_ROWS = LAST_ROW - BASE_ROW;
 const int COLUMNS = PANEL_COLUMNS;
 
 // These define the range of expected sensor values
@@ -17,9 +23,6 @@ float y_scaling_factor;
 
 // between 0 and 99, the "percentage" of attract mode pixels to turn on
 #define ATTRACT_MODE_DENSITY 40
-
-// This is the first row that has any pixels set in letterMap, needed to scale SENSOR_MAX to the top row, not above it
-#define BASE_ROW 3
 
 // The pins and BAUD rate to use for the RS485 port
 #define RS485_TX 3
@@ -76,7 +79,7 @@ bool getDot(const bool idle, const int x, const int y) {
 }
 
 int rowForSensorValue(const int sensorValue) {
-  return ROWS - ((sensorValue==0)?0:int(sensorValue * y_scaling_factor + 1));
+  return (LAST_ROW+1) - ((sensorValue==0)?0:int(sensorValue * y_scaling_factor + 1));
 }
 
 // Scale the sensor value to the row, flip the orientation as needed.
@@ -484,11 +487,21 @@ void setLetterMap(const bool pixelVal) {
 }
 
 void setup() {
-  y_scaling_factor = (float)(ROWS-BASE_ROW) / (float)(SENSOR_MAX - SENSOR_MIN);
   panelPort.begin(RS485_BAUD);
   Serial.begin(9600);
   setLetterMap(true);
   randomSeed(millis());
+  y_scaling_factor = (float)(LETTER_ROWS) / (float)(SENSOR_MAX - SENSOR_MIN);
+
+  Serial.print("scaling: ");
+  Serial.println(y_scaling_factor);
+  Serial.print("for 1: ");
+  Serial.println(rowForSensorValue(1));
+  Serial.print("for 50: ");
+  Serial.println(rowForSensorValue(50));
+  Serial.print("for 99: ");
+  Serial.println(rowForSensorValue(99));
+  
 }
 
 int getSensorValue() {
