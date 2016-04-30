@@ -1,6 +1,6 @@
 #include <SoftwareSerial.h>
 
-#define _DEBUG
+//#define _DEBUG
 
 // This is our physical panel configuration
 #define PANEL_ROWS 7
@@ -492,16 +492,6 @@ void setup() {
   setLetterMap(true);
   randomSeed(millis());
   y_scaling_factor = (float)(LETTER_ROWS) / (float)(SENSOR_MAX - SENSOR_MIN);
-
-  Serial.print("scaling: ");
-  Serial.println(y_scaling_factor);
-  Serial.print("for 1: ");
-  Serial.println(rowForSensorValue(1));
-  Serial.print("for 50: ");
-  Serial.println(rowForSensorValue(50));
-  Serial.print("for 99: ");
-  Serial.println(rowForSensorValue(99));
-  
 }
 
 int getSensorValue() {
