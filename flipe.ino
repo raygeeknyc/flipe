@@ -13,7 +13,7 @@
 #define LAST_ROW 24
 
 const int ROWS = PANEL_ROWS * PANELS;
-const int LETTER_ROWS = LAST_ROW - BASE_ROW;
+const int LETTER_ROWS = LAST_ROW+1 - BASE_ROW;
 const int COLUMNS = PANEL_COLUMNS;
 
 // These define the range of expected sensor values
@@ -507,6 +507,7 @@ int getSensorValue() {
     if (inChar == '\n' || inChar == '\0') {
       break;
     }
+    delay(5);
   }
   int val = -1;
   if (sensorString > "") {
